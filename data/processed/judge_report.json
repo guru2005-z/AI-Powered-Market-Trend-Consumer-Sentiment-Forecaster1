@@ -1,0 +1,352 @@
+[
+  {
+    "review": "Boat ye wala vs noice icon 3 plus konsa best hai please batado?",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is a neutral request for a recommendation, containing no positive or negative sentiment."
+  },
+  {
+    "review": "Size",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The single word 'Size' provides no positive or negative context, so it is neutral."
+  },
+  {
+    "review": "Does this watch comes with steps tracking",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is a neutral question asking about a feature, not expressing positive or negative sentiment."
+  },
+  {
+    "review": "Bro iphone ki best smart watch with low budget chepandi",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is a neutral request for a recommendation, not expressing positive or negative sentiment."
+  },
+  {
+    "review": "Bahiya aisa smartwatch Lao jisme pdf de sake",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is a neutral request for a smartwatch that can display PDFs, not expressing positive or negative sentiment."
+  },
+  {
+    "review": "Game he kay",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The phrase 'Game he kay' does not convey clear positive or negative sentiment, so a neutral label is appropriate."
+  },
+  {
+    "review": "Calculator?",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review \"Calculator?\" is a neutral question without any positive or negative sentiment."
+  },
+  {
+    "review": "500",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review consists only of a number, which carries no positive or negative sentiment, so it is neutral."
+  },
+  {
+    "review": "iska timeing kaise change karna hai",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is a neutral question about how to change timing, so the sentiment is neutral."
+  },
+  {
+    "review": "Ios ki suppor chesthunda ?",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is a neutral question about iOS support, so the sentiment is neutral (0)."
+  },
+  {
+    "review": "Prema de do na bhai mere ko bhai samajh ke de do abhi main aapka bhai banaa",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The statement is a friendly request without clear positive or negative emotion, making it neutral."
+  },
+  {
+    "review": "Games vunaya",
+    "student": "0",
+    "judge": "1",
+    "correct": false,
+    "reason": "The phrase 'Games vunaya' conveys a positive attitude toward the games, indicating a favorable sentiment rather than neutral."
+  },
+  {
+    "review": "Battery life",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The phrase 'Battery life' does not convey positive or negative sentiment, so it is neutral."
+  },
+  {
+    "review": "Is it worth",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The phrase 'Is it worth' is a neutral question without clear positive or negative sentiment."
+  },
+  {
+    "review": "Bro bt calling smart watch lo app download chaiyadam alla",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is a factual statement without positive or negative emotion, thus neutral."
+  },
+  {
+    "review": "Can you please give me",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The phrase is a polite request without positive or negative emotion, so it is neutral."
+  },
+  {
+    "review": "Ab main tumhara bhai hai fridge",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The phrase is a neutral statement without positive or negative sentiment."
+  },
+  {
+    "review": "Prasad anna link comment lo pettu please",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The statement is a neutral request asking to put a link in the comment, showing no positive or negative sentiment."
+  },
+  {
+    "review": "Bhai 4g Android smartwatch test karo",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is a neutral request to test a smartwatch, showing no positive or negative sentiment."
+  },
+  {
+    "review": "bhai tu double L me q baat karta hai",
+    "student": "-1",
+    "judge": "-1",
+    "correct": true,
+    "reason": "The comment expresses disapproval or criticism ('why do you talk like that?'), indicating a negative sentiment."
+  },
+  {
+    "review": "Realme watch 2 pro",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review only mentions the product name without any positive or negative language, indicating a neutral sentiment."
+  },
+  {
+    "review": "Price batao in video",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is a neutral request for price information, not expressing positive or negative sentiment."
+  },
+  {
+    "review": "Apple watch -100000",
+    "student": "0",
+    "judge": "-1",
+    "correct": false,
+    "reason": "The review contains a large negative value (-100000), indicating a strongly negative sentiment, not neutral."
+  },
+  {
+    "review": "One year ke baad battery problem ke full chances",
+    "student": "0",
+    "judge": "-1",
+    "correct": false,
+    "reason": "The review expresses a negative expectation about battery problems after one year, indicating a negative sentiment."
+  },
+  {
+    "review": "Mai to 999 me li hai",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is a factual statement without clear positive or negative sentiment, so it is neutral."
+  },
+  {
+    "review": "I am thinking to buy fireboltt phoenix amoled .. Should i buy this or something else? Plz tell.. Thanx!",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is a neutral request for advice, not expressing positive or negative sentiment."
+  },
+  {
+    "review": "Bhaiya kya isme YouTube aur WhatsApp ka features bhi hai ya nahi",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is a neutral question asking about feature availability, not expressing positive or negative sentiment."
+  },
+  {
+    "review": "smart watchNahin hai",
+    "student": "0",
+    "judge": "-1",
+    "correct": false,
+    "reason": "The phrase 'Nahin hai' means 'is not', expressing a negative sentiment toward the smart watch."
+  },
+  {
+    "review": "-0",
+    "student": "0",
+    "judge": "-1",
+    "correct": false,
+    "reason": "The leading '-' signals a negative sentiment, so the review should be classified as -1, not neutral."
+  },
+  {
+    "review": "Fire boltt ka check kar do",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The phrase is a neutral request to check something, not expressing positive or negative sentiment."
+  },
+  {
+    "review": "Snapdragon summit hua hain uske upar video ayega??",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is a neutral question asking about a video, not expressing positive or negative sentiment."
+  },
+  {
+    "review": "Bhaiya yah watch mil sakti hai kya",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The sentence is a neutral question asking if the watch is available, not expressing positive or negative sentiment."
+  },
+  {
+    "review": "Anna deaf person ki best watch chepu ana call and MSG vasthi watch' vibration Baga ekuva ga ravali",
+    "student": "0",
+    "judge": "1",
+    "correct": false,
+    "reason": "The review praises the watch as the best for a deaf person and requests strong vibration, indicating a positive sentiment."
+  },
+  {
+    "review": "Bro suggest water resistant watch in budget",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The statement is a neutral suggestion without positive or negative sentiment."
+  },
+  {
+    "review": "Can these watches do that on a skinny waist?",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is a neutral question asking about functionality, not expressing positive or negative sentiment."
+  },
+  {
+    "review": "Aloo khaoge ?",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The phrase is a neutral question about eating potatoes, so the sentiment is neutral (0), matching the student's answer."
+  },
+  {
+    "review": "Bro Link pettu bro",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The phrase is a neutral request ('Bro, put the link, bro') without positive or negative sentiment."
+  },
+  {
+    "review": "Boat company ka 3500 ka ghadi",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review merely mentions a Boat company's watch priced at 3500 without expressing positive or negative feelings, indicating a neutral sentiment."
+  },
+  {
+    "review": "Noise me AI create and AI s arch bhi hai",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is ambiguous and does not convey a clear positive or negative opinion, making a neutral label appropriate."
+  },
+  {
+    "review": "10000",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review consists only of the number \"10000\" without any contextual words, so it carries no clear positive or negative sentiment and is treated as neutral."
+  },
+  {
+    "review": "Mere pas h",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The phrase 'Mere pas h' is a neutral statement indicating possession, lacking positive or negative sentiment."
+  },
+  {
+    "review": "Bro smart watches tho payment chayacha ela undtadi lte watches tho cheyachu ga phone lekunda adha use chayacha",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is a neutral inquiry about using smart watches for payment, not expressing positive or negative sentiment."
+  },
+  {
+    "review": "Fire Boltt smart watch click unboxing review",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The title is a factual statement about an unboxing review, showing no positive or negative sentiment."
+  },
+  {
+    "review": "totara seat",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The phrase 'totara seat' is just a product name with no evaluative language, indicating neutral sentiment."
+  },
+  {
+    "review": "Noise",
+    "student": "0",
+    "judge": "-1",
+    "correct": false,
+    "reason": "The word 'Noise' generally expresses a complaint or displeasure, indicating a negative sentiment rather than a neutral one."
+  },
+  {
+    "review": "I have boAt storm call and it have water resistant.",
+    "student": "0",
+    "judge": "1",
+    "correct": false,
+    "reason": "The review highlights a positive feature (water resistance), indicating a positive sentiment rather than neutral."
+  },
+  {
+    "review": "Sleep tracker kese on kare ??",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is a neutral question asking how to turn on the sleep tracker, so the sentiment is neutral (0)."
+  },
+  {
+    "review": "S8 ultra watch anboking 4g sim",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review is a factual product description without positive or negative language, so it is neutral."
+  },
+  {
+    "review": "Bgmi was personal",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The statement 'Bgmi was personal' is descriptive without positive or negative connotation, thus neutral."
+  },
+  {
+    "review": "I purchase at least rs999 in bbd sale",
+    "student": "0",
+    "judge": "0",
+    "correct": true,
+    "reason": "The review states a factual purchase amount without expressing positive or negative feelings, so it is neutral."
+  }
+]

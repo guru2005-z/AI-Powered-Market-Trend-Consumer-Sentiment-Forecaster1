@@ -1,0 +1,120 @@
+{
+    "topics": [
+        {
+            "name": "Battery",
+            "positive": [
+                "fast charging",
+                "long life battery 15 days 550mah",
+                "charge two week once it will stay for 2 weeks"
+            ],
+            "negative": [
+                "One year ke baad battery problem ke full chances",
+                "battery badiya nahi",
+                "watch charge ilama",
+                "Iska battery backup bahut kam hai",
+                "I use but battery life achi nhi hai",
+                "Bekar hai yeh battery backup 1 din ka hai bas",
+                "I am not satisfied with battery backup. 1 ya 2 din hi acche se jata hai...lekin claim karta hai 10 din ka... I am disappointed bOat."
+            ],
+            "neutral": [
+                "Battery life",
+                "Charging how many day"
+            ]
+        },
+        {
+            "name": "Lifespan / Durability",
+            "positive": [
+                "built quality matram baguntadi"
+            ],
+            "negative": [
+                "5 din me kharaab hoo gyi bhai",
+                "Watch ne bottle se thoda pani pike khali kardiya",
+                "ghadi ghatiya",
+                "15 din mein Hi kharab ho gai"
+            ],
+            "neutral": [
+                "Me 1 year"
+            ]
+        },
+        {
+            "name": "Overall Verdict",
+            "positive": [
+                "best smart watch",
+                "Nice bro",
+                "Wow navigation watch"
+            ],
+            "negative": [
+                "Ye sabse bekar watch he i order and return",
+                "Smart watch garbage",
+                "ghadi ghatiya",
+                "don't buy this",
+                "bakwass",
+                "totally waste of money hai ye watch",
+                "Itni lite h ki strap jada bhari h watch se aur watch dummy watch ki tarah lgti h",
+                "Bhai bekar h maine aj hi mangai h return ke liye dal diya hu",
+                "Calling future bahut hi kharab hai mera ghata lag gaya online refund nhi hua"
+            ],
+            "neutral": [
+                "Itni khaas nahi haan"
+            ]
+        },
+        {
+            "name": "Performance",
+            "positive": [
+                "Wow navigation watch"
+            ],
+            "negative": [
+                "Boat ka application bekar hai sync slow hai",
+                "Bluetooth connectivity problem",
+                "Hanging problem",
+                "laggy hai..",
+                "Maine le liya ye hang ho Raha hai ise koi mat lena",
+                "Sir naa watch screen touch and hang aind",
+                "frequently disconnect avuthai Bluetooth...can't connect",
+                "Music not working properly",
+                "Photo lagene me problem aa rahi hai",
+                "Iska navigation faltu hai.",
+                "songs bhi nahi baja sakte totally waste of money hai ye watch",
+                "Calling future bahut hi kharab hai"
+            ],
+            "neutral": []
+        },
+        {
+            "name": "Display",
+            "positive": [],
+            "negative": [
+                "Brightness very bad",
+                "Anna incoming calls display midha no show",
+                "display fulla coducoda"
+            ],
+            "neutral": [
+                "amOLED display"
+            ]
+        },
+        {
+            "name": "Price",
+            "positive": [
+                "2000 kuu nalla irukkuu"
+            ],
+            "negative": [],
+            "neutral": [
+                "Price",
+                "Price bta diya kr...",
+                "Muje toh ye 2499 me Mila",
+                "Nen 1100 ki tiskunna bro Flipkart lo",
+                "Nenu theesukunna anna 1099 ki flipkart big billion days offer loo",
+                "Suggest below 2k price bro",
+                "Brother gaming watch 4games under 2000 with crown rotation button",
+                "Koi mt lena costom watch face ke liye subscription lena hoga 99 rs ka",
+                "under 1999",
+                "Under 1500",
+                "2500 under",
+                "low price low anna",
+                "Fire bolt okay 999",
+                "Instamart se mene 699 me liya",
+                "1800- price varudhu",
+                "Under 30k"
+            ]
+        }
+    ]
+}
