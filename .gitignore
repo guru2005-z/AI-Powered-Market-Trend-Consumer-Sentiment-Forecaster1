@@ -1,0 +1,19 @@
+venv/
+env/
+.venv/
+__pycache__/
+*.py[cod]
+
+# --- Environment Variables (Security) ---
+.env
+
+# --- Data Files (Too large for GitHub) ---
+data/
+*.csv
+*.json
+*.log
+*.sqlite3
+
+# --- IDE Settings ---
+.vscode/
+.idea/
