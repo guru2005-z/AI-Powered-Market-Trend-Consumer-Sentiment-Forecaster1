@@ -17,3 +17,6 @@ huggingface-hub==0.23.2
 # --- DATABASE (Critical Fix) ---
 pinecone-client==3.2.2
 langchain-pinecone==0.1.1
+
+# yagmail
+ yagmail==0.15.0

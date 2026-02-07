@@ -4,6 +4,7 @@ import json
 import os
 import plotly.express as px
 import plotly.graph_objects as go
+import yagmail  # <--- NEW IMPORT
 from dotenv import load_dotenv
 
 # --- STRICT MODERN IMPORTS ---
@@ -75,6 +76,40 @@ def process_topics_for_chart(json_data):
 
     return pd.DataFrame(results)
 
+# --- NEW: ALERT & EMAIL FUNCTIONS ---
+def check_alerts(df, threshold=-0.2):
+    alerts = []
+    if df.empty:
+        return alerts
+    
+    # Check last 3 days
+    recent_days = df.tail(3)
+    avg_recent = recent_days['sentiment'].mean()
+    
+    if avg_recent < threshold:
+        alerts.append(f"🚨 CRITICAL: Sentiment dropped to {avg_recent:.2f} (Threshold: {threshold})")
+    
+    # Check for volume spike
+    neg_reviews = len(recent_days[recent_days['sentiment'] == -1])
+    if neg_reviews > 5:
+        alerts.append(f"⚠️ WARNING: High volume of negative reviews detected ({neg_reviews} in 3 days).")
+        
+    return alerts
+
+def send_email_to_boss(to_email, subject, content):
+    user_email = os.getenv("GMAIL_USER")
+    app_password = os.getenv("GMAIL_APP_PASSWORD")
+
+    if not user_email or not app_password:
+        return False, "❌ Error: GMAIL_USER or GMAIL_APP_PASSWORD missing in .env file."
+
+    try:
+        yag = yagmail.SMTP(user=user_email, password=app_password)
+        yag.send(to=to_email, subject=subject, contents=content)
+        return True, "✅ Email sent successfully!"
+    except Exception as e:
+        return False, f"❌ Email failed: {e}"
+
 # 4. Setup AI Pipeline (Switched to Google Gemini)
 @st.cache_resource
 def setup_rag_pipeline_v4(topic_summary_text):
@@ -130,7 +165,8 @@ def setup_rag_pipeline_v4(topic_summary_text):
         retriever=vectorstore.as_retriever(search_kwargs={"k": 5}),
         chain_type_kwargs={"prompt": PROMPT}
     )
-    return qa_chain
+    # Return BOTH chain and direct LLM for reporting
+    return qa_chain, llm
 
 # --- INITIALIZATION ---
 try:
@@ -140,7 +176,8 @@ try:
     topic_text = json.dumps(topics_json, indent=2, ensure_ascii=False) if topics_json else "No topic data available."
     
     # Call the V4 pipeline (Gemini Version)
-    qa_chain = setup_rag_pipeline_v4(topic_text)
+    # UPDATED: Now captures both chain and direct LLM
+    qa_chain, llm_direct = setup_rag_pipeline_v4(topic_text)
 
 except Exception as e:
     st.error(f"System Error: {e}")
@@ -148,7 +185,8 @@ except Exception as e:
 
 # --- SIDEBAR NAVIGATION ---
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Overview", "AI Dashboard", "📈 Trend Analytics"])
+# ADDED "🔔 Alerts & Reports" to the menu
+page = st.sidebar.radio("Go to", ["Overview", "AI Dashboard", "📈 Trend Analytics", "🔔 Alerts & Reports"])
 
 # --- PAGE 1: OVERVIEW ---
 if page == "Overview":
@@ -280,3 +318,75 @@ elif page == "📈 Trend Analytics":
             st.metric("Current Sentiment (7-Day)", f"{recent_avg:.2f}", delta=f"{change:.2f}")
         with c2:
             st.metric("Peak Volume Day", daily_trends.loc[daily_trends['Review_Volume'].idxmax()][date_column].strftime('%Y-%m-%d'))
+
+# --- PAGE 4: ALERTS & REPORTS (NEW ADDITION) ---
+elif page == "🔔 Alerts & Reports":
+    st.title("🔔 Alerts & Executive Reports")
+    
+    # 1. Alert Section
+    st.subheader("⚠️ Live System Alerts")
+    threshold = st.slider("Alert Threshold (Sentiment Score)", -1.0, 1.0, -0.2)
+    
+    alerts = check_alerts(df, threshold)
+    if alerts:
+        for alert in alerts:
+            st.error(alert)
+    else:
+        st.success("✅ System Healthy: No negative spikes detected.")
+        
+    st.divider()
+    
+    # 2. Report Generation
+    st.subheader("📄 Generate AI Report")
+    st.markdown("Use Gemini to write a professional summary of all data collected.")
+    
+    if "generated_report" not in st.session_state:
+        st.session_state.generated_report = ""
+
+    if st.button("Generate Executive Summary"):
+        with st.spinner("Analyzing data..."):
+            if llm_direct:
+                report_prompt = f"""
+                Write a professional Executive Market Report based on this data:
+                - Total Reviews Processed: {len(df)}
+                - Average Global Sentiment: {df['sentiment'].mean():.2f}
+                - Identified Topics: {topic_text[:1000]}
+                
+                Format with: 1. Executive Summary, 2. Key Risks, 3. Strategic Recommendations.
+                """
+                report = llm_direct.invoke(report_prompt)
+                st.session_state.generated_report = report.content
+
+    # Display Report if it exists
+    if st.session_state.generated_report:
+        st.text_area("Report Preview", st.session_state.generated_report, height=300)
+        
+        # Download Button
+        st.download_button(
+            label="Download Text File",
+            data=st.session_state.generated_report,
+            file_name="Executive_Report.txt"
+        )
+        
+        # Email Section
+        st.divider()
+        st.subheader("📧 Send to Boss")
+        with st.form("email_form"):
+            boss_email = st.text_input("Recipient Email")
+            email_subject = st.text_input("Subject", "Market Report")
+            submitted = st.form_submit_button("Send Email")
+            
+            if submitted:
+                if not boss_email:
+                    st.warning("Please enter an email address.")
+                else:
+                    with st.spinner("Sending email..."):
+                        success, msg = send_email_to_boss(
+                            boss_email, 
+                            email_subject, 
+                            [st.session_state.generated_report]
+                        )
+                        if success:
+                            st.success(msg)
+                        else:
+                            st.error(msg)
