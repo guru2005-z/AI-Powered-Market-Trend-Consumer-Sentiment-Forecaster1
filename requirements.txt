@@ -1,22 +1,22 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+
 # --- APPLICATION ---
 streamlit==1.35.0
 plotly==5.22.0
 pandas==2.2.2
 python-dotenv==1.0.1
 
-# --- CORE AI FRAMEWORK (Stable 0.2 Series) ---
+# --- CORE AI FRAMEWORK ---
 langchain==0.2.6
 langchain-community==0.2.6
 langchain-core==0.2.10
 
-# --- MODELS (Google + HuggingFace) ---
+# --- MODELS ---
 langchain-google-genai==1.0.6
-langchain-huggingface==0.0.3
-huggingface-hub==0.23.2
 
-# --- DATABASE (Critical Fix) ---
+# --- DATABASE ---
 pinecone-client==3.2.2
 langchain-pinecone==0.1.1
 
-# yagmail
- yagmail
+# --- UTILS ---
+yagmail

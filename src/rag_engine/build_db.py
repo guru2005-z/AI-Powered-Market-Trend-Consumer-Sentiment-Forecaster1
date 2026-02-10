@@ -3,8 +3,8 @@ import time
 import pandas as pd
 from dotenv import load_dotenv
 
-# --- MODERN IMPORTS ---
 from pinecone import Pinecone, ServerlessSpec
+# ✅ OFFLINE MODEL (Bypasses your WiFi Block)
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from langchain_core.documents import Document
@@ -12,75 +12,103 @@ from langchain_core.documents import Document
 load_dotenv()
 
 # --- CONFIGURATION ---
-INPUT_FILE = "data/processed/youtube_sentiment.csv"
 INDEX_NAME = "market-forecaster"
-DESIRED_DIMENSION = 384  # Correct dimension for all-MiniLM-L6-v2
+CSV_FILE_PATH = "data/processed/youtube_sentiment.csv"
+DESIRED_DIMENSION = 384  # <--- Correct size for Offline Model
 
-def build_vector_db():
-    print("--- 🏗️ Building Vector Database ---")
+def build_db():
+    print("--- 🏗️ STARTING OFFLINE DATABASE BUILD ---")
     
-    # 1. Initialize Pinecone Client
-    pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-    
-    # 2. Check and Fix Index Dimensions
-    existing_indexes = [i.name for i in pc.list_indexes()]
-    
-    if INDEX_NAME in existing_indexes:
-        index_info = pc.describe_index(INDEX_NAME)
-        current_dim = int(index_info.dimension)
-        
-        if current_dim != DESIRED_DIMENSION:
-            print(f"⚠️ Mismatch detected! Index '{INDEX_NAME}' has {current_dim} dims, but we need {DESIRED_DIMENSION}.")
-            print(f"♻️ Deleting incompatible index '{INDEX_NAME}'...")
-            pc.delete_index(INDEX_NAME)
-            time.sleep(10) # Wait for deletion to propagate
-            existing_indexes.remove(INDEX_NAME)
-        else:
-            print(f"✅ Index '{INDEX_NAME}' already exists with correct dimensions.")
-
-    # 3. Create Index if it doesn't exist
-    if INDEX_NAME not in existing_indexes:
-        print(f"🆕 Creating new index: '{INDEX_NAME}' with dimension {DESIRED_DIMENSION}...")
-        pc.create_index(
-            name=INDEX_NAME,
-            dimension=DESIRED_DIMENSION,
-            metric="cosine",
-            spec=ServerlessSpec(cloud="aws", region="us-east-1")
-        )
-        # Wait for index to be ready
-        while not pc.describe_index(INDEX_NAME).status['ready']:
-            time.sleep(1)
-        print("✅ Index is ready!")
-
-    # 4. Setup Embedding Model
-    print("Loading Embedding Model (all-MiniLM-L6-v2)...")
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-
-    # 5. Load Data
-    if not os.path.exists(INPUT_FILE):
-        print(f"❌ File not found: {INPUT_FILE}")
+    # 1. API Key Check
+    pinecone_key = os.getenv("PINECONE_API_KEY")
+    if not pinecone_key:
+        print("❌ Error: PINECONE_API_KEY missing in .env")
         return
 
-    df = pd.read_csv(INPUT_FILE)
-    # Ensure content exists
-    df = df.dropna(subset=['content'])
+    # 2. Load Offline Model
+    print("💻 Loading Local AI Brain (all-MiniLM-L6-v2)...")
+    try:
+        # This downloads the model once (~80MB) and runs on your CPU
+        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        print("✅ Local AI Loaded Successfully.")
+    except Exception as e:
+        print(f"❌ Error loading model: {e}")
+        print("👉 Run: pip install sentence-transformers langchain-huggingface")
+        return
+
+    # 3. Connect to Pinecone & Auto-Fix Index
+    print("🌲 Connecting to Pinecone...")
+    pc = Pinecone(api_key=pinecone_key)
+    
+    existing_indexes = [i.name for i in pc.list_indexes()]
+    
+    # A. Check existing index
+    if INDEX_NAME in existing_indexes:
+        print(f"🔍 Checking existing index '{INDEX_NAME}'...")
+        index_info = pc.describe_index(INDEX_NAME)
+        
+        # If dimensions are wrong (e.g. 768 from your screenshot), DELETE IT.
+        if int(index_info.dimension) != DESIRED_DIMENSION:
+            print(f"♻️ WRONG DIMENSIONS DETECTED (Found {index_info.dimension}, Need {DESIRED_DIMENSION}).")
+            print("🗑️ Deleting incompatible index (This takes 20s)...")
+            pc.delete_index(INDEX_NAME)
+            time.sleep(20)
+            existing_indexes = [i.name for i in pc.list_indexes()]
+    
+    # B. Create Index automatically
+    if INDEX_NAME not in existing_indexes:
+        print(f"🆕 Creating NEW Index '{INDEX_NAME}' (384 Dim)...")
+        try:
+            pc.create_index(
+                name=INDEX_NAME,
+                dimension=DESIRED_DIMENSION,
+                metric="cosine",
+                spec=ServerlessSpec(cloud="aws", region="us-east-1")
+            )
+            # Wait for readiness
+            while not pc.describe_index(INDEX_NAME).status['ready']:
+                time.sleep(1)
+            print("✅ Index Created Successfully!")
+        except Exception as e:
+            print(f"❌ Index Creation Error: {e}")
+            return
+
+    # 4. Load Data
+    if not os.path.exists(CSV_FILE_PATH):
+        print(f"❌ Error: File not found at {CSV_FILE_PATH}")
+        return
+    
+    df = pd.read_csv(CSV_FILE_PATH).dropna(subset=['content'])
     print(f"📂 Loaded {len(df)} reviews.")
 
-    # 6. Convert to Documents
+    # 5. Prepare Documents
     documents = []
-    print("Converting rows to vector documents...")
-    
     for _, row in df.iterrows():
         doc = Document(
-            page_content=str(row['content']),
+            page_content=str(row['content'])[:1000],
             metadata={"sentiment": str(row.get('sentiment', '0'))}
         )
         documents.append(doc)
 
-    # 7. Upload
-    print(f"🚀 Uploading {len(documents)} vectors to Pinecone...")
-    PineconeVectorStore.from_documents(documents, embeddings, index_name=INDEX_NAME)
-    print("✅ Success! Database Built.")
+    # 6. Upload (Fast & Local)
+    print("🚀 Uploading to Pinecone...")
+    vectorstore = PineconeVectorStore(
+        index_name=INDEX_NAME,
+        embedding=embeddings,
+        pinecone_api_key=pinecone_key
+    )
+
+    batch_size = 100 
+    for i in range(0, len(documents), batch_size):
+        batch = documents[i : i + batch_size]
+        try:
+            print(f"   🔹 Uploading batch {i} to {i+len(batch)}...", end="\r")
+            vectorstore.add_documents(batch)
+            print(f"   ✅ Batch {i} OK!       ")
+        except Exception as e:
+            print(f"   ⚠️ Batch error: {e}")
+
+    print("\n✅ SUCCESS! Database Built (Offline Mode).")
 
 if __name__ == "__main__":
-    build_vector_db()
+    build_db()
