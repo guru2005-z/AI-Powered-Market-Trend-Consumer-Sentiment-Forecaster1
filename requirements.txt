@@ -3,9 +3,13 @@ pandas
 plotly
 python-dotenv
 yagmail
-pinecone-client
-langchain
-langchain-community
-langchain-core
+# Core AI Framework (Pinned for Stability)
+langchain==0.3.7
+langchain-community==0.3.7
+langchain-core==0.3.15
+langchain-text-splitters==0.3.2
+# Integrations
 langchain-google-genai
 langchain-pinecone
+langchain-huggingface
+pinecone-client
