@@ -12,9 +12,10 @@ from dotenv import load_dotenv
 # --- 1. SETUP PAGE CONFIG (Must be first) ---
 st.set_page_config(page_title="AI Market Forecaster", layout="wide")
 
-# --- 2. LAZY IMPORTS (Prevents Crashing on Startup) ---
-# We only import heavy AI libraries inside functions, not at the top.
-from langchain_core.prompts import PromptTemplate
+# ✅ CORRECT IMPORTS FOR LANGCHAIN 0.1
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_pinecone import PineconeVectorStore
+from langchain.chains import RetrievalQA
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 # Load Environment Variables
