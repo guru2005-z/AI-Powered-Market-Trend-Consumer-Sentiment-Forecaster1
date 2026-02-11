@@ -38,27 +38,27 @@ def build_db():
 
     # 3. Connect to Pinecone & Auto-Fix Index
     print("🌲 Connecting to Pinecone...")
-    pc = Pinecone(api_key=pinecone_key)
-    
-    existing_indexes = [i.name for i in pc.list_indexes()]
-    
-    # A. Check existing index
-    if INDEX_NAME in existing_indexes:
-        print(f"🔍 Checking existing index '{INDEX_NAME}'...")
-        index_info = pc.describe_index(INDEX_NAME)
+    try:
+        pc = Pinecone(api_key=pinecone_key)
         
-        # If dimensions are wrong (e.g. 768 from your screenshot), DELETE IT.
-        if int(index_info.dimension) != DESIRED_DIMENSION:
-            print(f"♻️ WRONG DIMENSIONS DETECTED (Found {index_info.dimension}, Need {DESIRED_DIMENSION}).")
-            print("🗑️ Deleting incompatible index (This takes 20s)...")
-            pc.delete_index(INDEX_NAME)
-            time.sleep(20)
-            existing_indexes = [i.name for i in pc.list_indexes()]
-    
-    # B. Create Index automatically
-    if INDEX_NAME not in existing_indexes:
-        print(f"🆕 Creating NEW Index '{INDEX_NAME}' (384 Dim)...")
-        try:
+        existing_indexes = [i.name for i in pc.list_indexes()]
+        
+        # A. Check existing index
+        if INDEX_NAME in existing_indexes:
+            print(f"🔍 Checking existing index '{INDEX_NAME}'...")
+            index_info = pc.describe_index(INDEX_NAME)
+            
+            # If dimensions are wrong (e.g. 768 from your screenshot), DELETE IT.
+            if int(index_info.dimension) != DESIRED_DIMENSION:
+                print(f"♻️ WRONG DIMENSIONS DETECTED (Found {index_info.dimension}, Need {DESIRED_DIMENSION}).")
+                print("🗑️ Deleting incompatible index (This takes 20s)...")
+                pc.delete_index(INDEX_NAME)
+                time.sleep(20)
+                existing_indexes = [i.name for i in pc.list_indexes()]
+        
+        # B. Create Index automatically
+        if INDEX_NAME not in existing_indexes:
+            print(f"🆕 Creating NEW Index '{INDEX_NAME}' (384 Dim)...")
             pc.create_index(
                 name=INDEX_NAME,
                 dimension=DESIRED_DIMENSION,
@@ -69,17 +69,22 @@ def build_db():
             while not pc.describe_index(INDEX_NAME).status['ready']:
                 time.sleep(1)
             print("✅ Index Created Successfully!")
-        except Exception as e:
-            print(f"❌ Index Creation Error: {e}")
-            return
+            
+    except Exception as e:
+        print(f"❌ Index Creation Error: {e}")
+        return
 
     # 4. Load Data
     if not os.path.exists(CSV_FILE_PATH):
         print(f"❌ Error: File not found at {CSV_FILE_PATH}")
         return
     
-    df = pd.read_csv(CSV_FILE_PATH).dropna(subset=['content'])
-    print(f"📂 Loaded {len(df)} reviews.")
+    try:
+        df = pd.read_csv(CSV_FILE_PATH).dropna(subset=['content'])
+        print(f"📂 Loaded {len(df)} reviews.")
+    except Exception as e:
+        print(f"❌ Error reading CSV: {e}")
+        return
 
     # 5. Prepare Documents
     documents = []
@@ -92,23 +97,24 @@ def build_db():
 
     # 6. Upload (Fast & Local)
     print("🚀 Uploading to Pinecone...")
-    vectorstore = PineconeVectorStore(
-        index_name=INDEX_NAME,
-        embedding=embeddings,
-        pinecone_api_key=pinecone_key
-    )
+    try:
+        vectorstore = PineconeVectorStore(
+            index_name=INDEX_NAME,
+            embedding=embeddings,
+            pinecone_api_key=pinecone_key
+        )
 
-    batch_size = 100 
-    for i in range(0, len(documents), batch_size):
-        batch = documents[i : i + batch_size]
-        try:
+        batch_size = 100 
+        for i in range(0, len(documents), batch_size):
+            batch = documents[i : i + batch_size]
             print(f"   🔹 Uploading batch {i} to {i+len(batch)}...", end="\r")
             vectorstore.add_documents(batch)
             print(f"   ✅ Batch {i} OK!       ")
-        except Exception as e:
-            print(f"   ⚠️ Batch error: {e}")
 
-    print("\n✅ SUCCESS! Database Built (Offline Mode).")
+        print("\n✅ SUCCESS! Database Built (Offline Mode).")
+        
+    except Exception as e:
+        print(f"❌ Upload Error: {e}")
 
 if __name__ == "__main__":
     build_db()
