@@ -1,5 +1,11 @@
 streamlit
 pandas
 plotly
-yagmail
 python-dotenv
+yagmail
+pinecone-client
+langchain
+langchain-community
+langchain-core
+langchain-google-genai
+langchain-pinecone
