@@ -5,18 +5,16 @@ import os
 import plotly.express as px
 import plotly.graph_objects as go
 import yagmail
-import re
+import re  # <--- NEW: Used to format the email text
+from datetime import date
 from dotenv import load_dotenv
 
-# --- STABLE IMPORTS (Works with langchain==0.1.20) ---
+# --- STRICT MODERN IMPORTS ---
 from langchain_pinecone import PineconeVectorStore
-from langchain.chains import RetrievalQA  # <--- This works perfectly in v0.1.20
-from langchain.prompts import PromptTemplate
+from langchain.chains import RetrievalQA
+from langchain_core.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-
-# NOTE: We use Google Embeddings because they are faster and free with your key.
-# If you MUST use HuggingFace, uncomment the next line, but it might crash the 1GB RAM.
-# from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 
 # 1. Load Keys
 load_dotenv()
