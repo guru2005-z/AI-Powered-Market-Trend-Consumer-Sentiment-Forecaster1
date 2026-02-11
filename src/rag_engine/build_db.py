@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 from pinecone import Pinecone, ServerlessSpec
 # ✅ OFFLINE MODEL (Bypasses your WiFi Block)
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings  # ✅ This works with v0.1
 from langchain_pinecone import PineconeVectorStore
 from langchain_core.documents import Document
 

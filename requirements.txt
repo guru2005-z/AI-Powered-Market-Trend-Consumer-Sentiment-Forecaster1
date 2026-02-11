@@ -14,8 +14,8 @@ langchain-core==0.1.52
 # --- MODELS & INTEGRATIONS ---
 langchain-google-genai==1.0.3
 langchain-pinecone==0.1.0
-langchain-huggingface==0.0.3
-sentence-transformers==3.0.1
+# ✅ REMOVED 'langchain-huggingface' to prevent conflicts
+sentence-transformers==2.2.2
 pinecone-client==3.2.2
 
 # --- UTILS ---
