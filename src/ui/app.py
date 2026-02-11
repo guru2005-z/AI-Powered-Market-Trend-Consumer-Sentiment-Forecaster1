@@ -1,6 +1,377 @@
 import streamlit as st
+import pandas as pd
+import json
+import os
+import plotly.express as px
+import plotly.graph_objects as go
+import yagmail
+import re  # <--- NEW: Used to format the email text
+from datetime import date
+from dotenv import load_dotenv
 
-st.set_page_config(page_title="Test")
-st.title("✅ CONNECTION SUCCESSFUL")
-st.write("If you see this, the server is working perfectly!")
-st.balloons()
+# --- STRICT MODERN IMPORTS ---
+from langchain_pinecone import PineconeVectorStore
+from langchain.chains import RetrievalQA
+from langchain_core.prompts import PromptTemplate
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
+
+# 1. Load Keys
+load_dotenv()
+
+# 2. Page Config
+st.set_page_config(page_title="AI Market Forecaster", layout="wide")
+
+# 3. Load Data Functions
+@st.cache_data
+def load_data():
+    try:
+        df = pd.read_csv("data/processed/youtube_sentiment.csv")
+        date_col = None
+        for col in ['date', 'published_at', 'timestamp', 'created_at']:
+            if col in df.columns:
+                date_col = col
+                break
+        if date_col is None:
+            dates = pd.date_range(end=pd.Timestamp.now(), periods=len(df))
+            df['date'] = dates
+            date_col = 'date'
+        df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+        df = df.sort_values(by=date_col)
+        return df, date_col
+    except FileNotFoundError:
+        return pd.DataFrame(), None
+
+@st.cache_data
+def load_topics():
+    try:
+        with open("data/processed/topics_summary.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+# --- CHART PROCESSOR ---
+def process_topics_for_chart(json_data):
+    if not json_data or "topics" not in json_data:
+        return pd.DataFrame()
+    results = []
+    for item in json_data["topics"]:
+        feature_name = item.get("name", "Unknown")
+        pos_count = len(item.get("positive", []))
+        neg_count = len(item.get("negative", []))
+        total = pos_count + neg_count + len(item.get("neutral", []))
+        if total > 0:
+            score = (pos_count - neg_count) / total
+            results.append({"Feature": feature_name, "Sentiment Score": score, "Mentions": total})
+    return pd.DataFrame(results)
+
+# --- ALERT FUNCTION ---
+def check_alerts(df, threshold=-0.2):
+    alerts = []
+    if df.empty: return alerts
+    recent_days = df.tail(3)
+    avg_recent = recent_days['sentiment'].mean()
+    if avg_recent < threshold:
+        alerts.append(f"🚨 CRITICAL: Sentiment dropped to {avg_recent:.2f} (Threshold: {threshold})")
+    neg_reviews = len(recent_days[recent_days['sentiment'] == -1])
+    if neg_reviews > 5:
+        alerts.append(f"⚠️ WARNING: High volume of negative reviews detected ({neg_reviews} in 3 days).")
+    return alerts
+
+# --- NEW: TEXT TRANSLATOR (Markdown -> HTML) ---
+def format_markdown_to_html(text):
+    """Converts raw Markdown symbols into clean HTML for emails."""
+    # 1. Convert Headers (# Header -> <h2>Header</h2>)
+    text = re.sub(r'^# (.*)', r'<h2 style="color:#003366; border-bottom: 2px solid #eee; padding-bottom: 5px; margin-top: 20px;">\1</h2>', text, flags=re.MULTILINE)
+    text = re.sub(r'^## (.*)', r'<h3 style="color:#00509E; margin-top: 15px;">\1</h3>', text, flags=re.MULTILINE)
+    
+    # 2. Convert Bold (**Text** -> <strong>Text</strong>)
+    text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+    
+    # 3. Convert Lists (* Item -> Bullet point)
+    text = re.sub(r'^\* (.*)', r'<div style="margin-left: 15px; margin-bottom: 5px;">• \1</div>', text, flags=re.MULTILINE)
+    
+    # 4. Handle Newlines
+    text = text.replace("\n", "<br>")
+    
+    return text
+
+# --- EMAIL FUNCTION ---
+def send_email_to_boss(to_email, subject, content):
+    user_email = os.getenv("GMAIL_USER")
+    app_password = os.getenv("GMAIL_APP_PASSWORD")
+
+    if not user_email or not app_password:
+        return False, "❌ Error: GMAIL_USER or GMAIL_APP_PASSWORD missing in .env file."
+
+    # --- USE THE TRANSLATOR HERE ---
+    formatted_html = format_markdown_to_html(content[0])
+    
+    # Professional Email Template
+    html_body = f"""
+    <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; max-width: 650px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #003366; padding: 30px; text-align: center; color: white;">
+            <h1 style="margin: 0; font-size: 24px; font-weight: 600;">Executive Market Report</h1>
+            <p style="margin: 8px 0 0; font-size: 14px; opacity: 0.9;">Confidential Intelligence Update</p>
+        </div>
+        
+        <div style="padding: 40px 30px; background-color: #ffffff; line-height: 1.6; font-size: 15px;">
+            {formatted_html}
+        </div>
+        
+        <div style="background-color: #f8f9fa; color: #666; padding: 15px; text-align: center; font-size: 12px; border-top: 1px solid #e0e0e0;">
+            <p style="margin: 0;">Generated by <strong>AI Market Forecaster</strong></p>
+            <p style="margin: 5px 0 0; color: #999;">Internal Use Only</p>
+        </div>
+    </div>
+    """
+
+    try:
+        yag = yagmail.SMTP(user=user_email, password=app_password)
+        yag.send(to=to_email, subject=subject, contents=[html_body])
+        return True, "✅ Report sent successfully!"
+    except Exception as e:
+        return False, f"❌ Email failed: {e}"
+
+# 4. Setup AI Pipeline
+@st.cache_resource
+def setup_rag_pipeline_v4(topic_summary_text):
+    if not os.getenv("GOOGLE_API_KEY") or not os.getenv("PINECONE_API_KEY"):
+        st.error("Missing API Keys!")
+        return None, None
+
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    vectorstore = PineconeVectorStore(
+        index_name="market-forecaster",
+        embedding=embeddings,
+        pinecone_api_key=os.getenv("PINECONE_API_KEY")
+    )
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash", 
+        temperature=0.3,
+        google_api_key=os.getenv("GOOGLE_API_KEY")
+    )
+    
+    # --- CHATBOT PROMPT ---
+    template = """
+    You are a helpful Market Assistant Chatbot.
+    Answer the user's question using the data below. Keep it short and conversational.
+    
+    --- MARKET DATA ---
+    {topics}
+    -------------------
+    
+    REVIEWS:
+    {context}
+    
+    USER: {question}
+    
+    BOT ANSWER:
+    """
+    
+    PROMPT = PromptTemplate(
+        template=template,
+        input_variables=["context", "question"],
+        partial_variables={"topics": topic_summary_text}
+    )
+    
+    qa_chain = RetrievalQA.from_chain_type(
+        llm=llm,
+        chain_type="stuff",
+        retriever=vectorstore.as_retriever(search_kwargs={"k": 5}),
+        chain_type_kwargs={"prompt": PROMPT}
+    )
+    return qa_chain, llm
+
+# --- INITIALIZATION ---
+try:
+    df, date_column = load_data()
+    topics_json = load_topics()
+    topic_text = json.dumps(topics_json, indent=2, ensure_ascii=False) if topics_json else "No data."
+    qa_chain, llm_direct = setup_rag_pipeline_v4(topic_text)
+
+except Exception as e:
+    st.error(f"System Error: {e}")
+    st.stop()
+
+# =======================================================
+# 🎨 SIDEBAR NAVIGATION & PERSISTENT CHATBOT
+# =======================================================
+
+with st.sidebar:
+    st.title("Navigation")
+    page = st.radio("Go to", ["Overview", "📈 Trend Analytics", "🔔 Alerts & Reports"])
+    
+    st.markdown("---")
+    
+    # --- 💬 PERSISTENT CHATBOT SECTION ---
+    st.header("💬 AI Assistant")
+    st.caption("Ask me anything about the data!")
+
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Hi! I'm analyzing your data. Ask me a question!"}
+        ]
+
+    with st.expander("Show Chat History", expanded=True):
+        for msg in st.session_state.messages:
+            if msg["role"] == "user":
+                st.chat_message("user").write(msg["content"])
+            else:
+                st.chat_message("assistant").write(msg["content"])
+
+    if prompt := st.chat_input("Ask about trends...", key="sidebar_chat"):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.chat_message("user").write(prompt)
+
+        if qa_chain:
+            with st.spinner("Thinking..."):
+                try:
+                    response = qa_chain.invoke({"query": prompt})
+                    answer = response["result"]
+                    st.session_state.messages.append({"role": "assistant", "content": answer})
+                    st.rerun() 
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+# =======================================================
+# 📄 MAIN PAGE LOGIC
+# =======================================================
+
+# --- PAGE 1: OVERVIEW ---
+if page == "Overview":
+    st.title("📊 Boat Market Overview")
+    if not df.empty:
+        total = len(df)
+        pos = len(df[df['sentiment'] == 1])
+        neg = len(df[df['sentiment'] == -1])
+        neu = len(df[df['sentiment'] == 0])
+        
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Total Reviews", total)
+        c2.metric("Positive", pos, f"{((pos/total)*100):.1f}%")
+        c3.metric("Negative", neg, f"{((neg/total)*100):.1f}%", delta_color="inverse")
+        
+        st.divider()
+        col_left, col_right = st.columns(2)
+        with col_left:
+            st.subheader("Overall Sentiment")
+            fig_pie = px.pie(names=["Positive", "Negative", "Neutral"], values=[pos, neg, neu], 
+                             color_discrete_sequence=["#2ecc71", "#e74c3c", "#95a5a6"])
+            st.plotly_chart(fig_pie, use_container_width=True)
+            
+        with col_right:
+            st.subheader("Feature Sentiment Score")
+            feature_df = process_topics_for_chart(topics_json)
+            if not feature_df.empty:
+                fig_bar = px.bar(feature_df, x="Feature", y="Sentiment Score", color="Sentiment Score",
+                                 color_continuous_scale="RdYlGn", range_y=[-1, 1], text_auto=".2f")
+                st.plotly_chart(fig_bar, use_container_width=True)
+
+# --- PAGE 2: TREND ANALYTICS ---
+elif page == "📈 Trend Analytics":
+    st.title("📈 Sentiment Trends")
+    if not df.empty and date_column:
+        daily = df.groupby(pd.Grouper(key=date_column, freq='D')).agg(
+            Avg=('sentiment', 'mean'), Vol=('content', 'count')).reset_index()
+        daily['Smooth'] = daily['Avg'].rolling(7, min_periods=1).mean()
+        
+        fig = go.Figure()
+        fig.add_trace(go.Bar(x=daily[date_column], y=daily['Vol'], name='Volume', marker_color='silver', yaxis='y2'))
+        fig.add_trace(go.Scatter(x=daily[date_column], y=daily['Smooth'], name='Sentiment', line=dict(color='blue', width=3)))
+        fig.update_layout(yaxis2=dict(overlaying='y', side='right'))
+        st.plotly_chart(fig, use_container_width=True)
+        
+        st.subheader("Key Trend Insights")
+        c1, c2 = st.columns(2)
+        recent_avg = daily['Smooth'].iloc[-1]
+        c1.metric("Current Sentiment (7-Day)", f"{recent_avg:.2f}")
+
+# --- PAGE 3: ALERTS & REPORTS ---
+elif page == "🔔 Alerts & Reports":
+    st.title("🔔 Alerts & Executive Reports")
+    
+    st.subheader("⚠️ Live System Alerts")
+    threshold = st.slider("Alert Threshold (Sentiment Score)", -1.0, 1.0, -0.2)
+    
+    alerts = check_alerts(df, threshold)
+    if alerts:
+        for alert in alerts:
+            st.error(alert)
+    else:
+        st.success("✅ System Healthy: No negative spikes detected.")
+        
+    st.divider()
+    
+    st.subheader("📄 Generate AI Report")
+    
+    if "generated_report" not in st.session_state:
+        st.session_state.generated_report = ""
+
+    if st.button("Generate Executive Summary"):
+        with st.spinner("Writing Report..."):
+            if llm_direct:
+                today = date.today().strftime("%B %d, %Y")
+                
+                # --- PROFESSIONAL REPORT PROMPT ---
+                report_prompt = f"""
+                Write a formal Executive Market Report based on this data. 
+                Do NOT use emojis. Use a professional, corporate tone.
+                
+                METADATA:
+                - Date: {today}
+                - Prepared For: Senior Product Management
+                
+                DATA SUMMARY:
+                - Total Reviews Analyzed: {len(df)}
+                - Global Sentiment Score: {df['sentiment'].mean():.2f} (Range: -1.0 to +1.0)
+                - Key Topic Data: {topic_text[:800]}
+                
+                REQUIRED FORMAT (Use Markdown):
+                # Executive Market Report
+                **Date:** {today}
+                
+                ## 1. Executive Summary
+                [Summary]
+                
+                ## 2. Key Risk Analysis
+                * [Risk 1]
+                * [Risk 2]
+                
+                ## 3. Strategic Recommendations
+                * [Recommendation 1]
+                """
+                
+                report = llm_direct.invoke(report_prompt)
+                st.session_state.generated_report = report.content
+
+    if st.session_state.generated_report:
+        st.markdown("### 📝 Report Preview")
+        with st.container(border=True):
+            st.markdown(st.session_state.generated_report)
+        
+        st.download_button(
+            label="Download PDF/Text Report",
+            data=st.session_state.generated_report,
+            file_name=f"Executive_Report_{date.today()}.txt"
+        )
+        
+        st.divider()
+        st.subheader("📧 Send Report to Management")
+        with st.form("email_form"):
+            boss_email = st.text_input("Recipient Email")
+            email_subject = st.text_input("Subject", "Executive Market Report")
+            submitted = st.form_submit_button("Send Report")
+            
+            if submitted:
+                if not boss_email:
+                    st.warning("Please enter an email address.")
+                else:
+                    with st.spinner("Sending secure email..."):
+                        success, msg = send_email_to_boss(
+                            boss_email, 
+                            email_subject, 
+                            [st.session_state.generated_report]
+                        )
+                        if success: st.success(msg)
+                        else: st.error(msg)
