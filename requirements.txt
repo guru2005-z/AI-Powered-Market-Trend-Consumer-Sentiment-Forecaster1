@@ -13,9 +13,6 @@ langchain-core==0.2.10
 
 # --- MODELS ---
 langchain-google-genai==1.0.6
-# 👇 THIS WAS MISSING
-langchain-huggingface==0.0.3
-sentence-transformers==3.0.1
 
 # --- DATABASE ---
 pinecone-client==3.2.2
