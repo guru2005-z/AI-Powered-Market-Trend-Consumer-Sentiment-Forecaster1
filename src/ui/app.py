@@ -12,6 +12,11 @@ from dotenv import load_dotenv
 # --- STRICT MODERN IMPORTS ---
 from langchain_pinecone import PineconeVectorStore
 from langchain.chains import RetrievalQA
+# If that fails in 0.3, use this fallback:
+try:
+    from langchain.chains import RetrievalQA
+except ImportError:
+    from langchain.chains.retrieval_qa.base import RetrievalQA
 from langchain_core.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_huggingface import HuggingFaceEmbeddings
