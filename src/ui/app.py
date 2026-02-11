@@ -12,18 +12,21 @@ from dotenv import load_dotenv
 # --- 1. SETUP PAGE CONFIG ---
 st.set_page_config(page_title="AI Market Forecaster", layout="wide")
 
-# --- 2. EXACT IMPORTS (DO NOT CHANGE) ---
-# These match your requirements.txt perfectly.
-from langchain_community.vectorstores import Pinecone as PineconeVectorStore
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain.chains import RetrievalQA
-from langchain.prompts import PromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
+# --- 2. STABLE IMPORTS (Matches your Requirements.txt) ---
+try:
+    from langchain_community.vectorstores import Pinecone as PineconeVectorStore
+    from langchain_community.embeddings import HuggingFaceEmbeddings
+    from langchain.chains import RetrievalQA
+    from langchain.prompts import PromptTemplate
+    from langchain_google_genai import ChatGoogleGenerativeAI
+except ImportError:
+    st.error("⚠️ Library Version Mismatch. Please check requirements.txt")
+    st.stop()
 
 # Load Keys
 load_dotenv()
 
-# --- 3. HELPER FUNCTIONS (DATA LOADING) ---
+# --- 3. HELPER FUNCTIONS (Data & Charts) ---
 @st.cache_data
 def load_data():
     try:
@@ -31,7 +34,7 @@ def load_data():
             return pd.DataFrame(), None
         df = pd.read_csv("data/processed/youtube_sentiment.csv")
         
-        # Date Logic
+        # Smart Date Parsing
         date_col = None
         for col in ['date', 'published_at', 'timestamp', 'created_at']:
             if col in df.columns:
@@ -42,22 +45,17 @@ def load_data():
             date_col = 'date'
         
         df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
-        df = df.sort_values(by=date_col)
-        return df, date_col
+        return df.sort_values(by=date_col), date_col
     except Exception:
         return pd.DataFrame(), None
 
 @st.cache_data
 def load_topics():
     try:
-        if not os.path.exists("data/processed/topics_summary.json"):
-            return {}
         with open("data/processed/topics_summary.json", "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except FileNotFoundError:
         return {}
-
-# --- 4. FEATURE FUNCTIONS (CHARTS, ALERTS, EMAIL) ---
 
 def process_topics_for_chart(json_data):
     if not json_data or "topics" not in json_data:
@@ -65,11 +63,11 @@ def process_topics_for_chart(json_data):
     results = []
     for item in json_data["topics"]:
         feature_name = item.get("name", "Unknown")
-        pos_count = len(item.get("positive", []))
-        neg_count = len(item.get("negative", []))
-        total = pos_count + neg_count + len(item.get("neutral", []))
+        pos = len(item.get("positive", []))
+        neg = len(item.get("negative", []))
+        total = pos + neg + len(item.get("neutral", []))
         if total > 0:
-            score = (pos_count - neg_count) / total
+            score = (pos - neg) / total
             results.append({"Feature": feature_name, "Sentiment Score": score, "Mentions": total})
     return pd.DataFrame(results)
 
@@ -85,11 +83,12 @@ def check_alerts(df, threshold=-0.2):
         alerts.append(f"⚠️ WARNING: High volume of negative reviews detected ({neg_reviews} in 3 days).")
     return alerts
 
+# --- 4. EMAIL HELPERS ---
 def format_markdown_to_html(text):
-    # Simple converter for emails
-    text = re.sub(r'^# (.*)', r'<h2>\1</h2>', text, flags=re.MULTILINE)
-    text = re.sub(r'^## (.*)', r'<h3>\1</h3>', text, flags=re.MULTILINE)
+    text = re.sub(r'^# (.*)', r'<h2 style="color:#003366; border-bottom: 2px solid #eee;">\1</h2>', text, flags=re.MULTILINE)
+    text = re.sub(r'^## (.*)', r'<h3 style="color:#00509E;">\1</h3>', text, flags=re.MULTILINE)
     text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+    text = re.sub(r'^\* (.*)', r'<li>\1</li>', text, flags=re.MULTILINE)
     text = text.replace("\n", "<br>")
     return text
 
@@ -98,183 +97,181 @@ def send_email_to_boss(to_email, subject, content):
     app_password = os.getenv("GMAIL_APP_PASSWORD") or st.secrets.get("GMAIL_APP_PASSWORD")
 
     if not user_email or not app_password:
-        return False, "❌ Error: Missing GMAIL secrets."
+        return False, "❌ Missing GMAIL credentials in Secrets."
 
-    formatted_html = format_markdown_to_html(content[0])
-    html_body = f"""
-    <div style="font-family: Arial; padding: 20px;">
-        <h2 style="color: #003366;">Executive Market Report</h2>
-        <div style="background: #f9f9f9; padding: 15px;">{formatted_html}</div>
-    </div>
-    """
+    formatted_html = format_markdown_to_html(content)
     try:
         yag = yagmail.SMTP(user=user_email, password=app_password)
-        yag.send(to=to_email, subject=subject, contents=[html_body])
-        return True, "✅ Sent!"
+        yag.send(to=to_email, subject=subject, contents=[formatted_html])
+        return True, "✅ Report sent successfully!"
     except Exception as e:
-        return False, f"❌ Failed: {e}"
+        return False, f"❌ Email failed: {e}"
 
-# --- 5. AI PIPELINE ---
+# --- 5. AI ENGINE (Stable Setup) ---
 @st.cache_resource
-def setup_ai():
-    # Get Keys
+def setup_rag_chain():
+    # 1. Get Keys
     pinecone_key = os.getenv("PINECONE_API_KEY") or st.secrets.get("PINECONE_API_KEY")
     google_key = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
     
     if not pinecone_key or not google_key:
         return None, None
 
+    # 2. Initialize Models
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     try:
-        # Load AI
-        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         vectorstore = PineconeVectorStore.from_existing_index(
             index_name="market-forecaster",
             embedding=embeddings
         )
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            temperature=0.3,
-            google_api_key=google_key
-        )
-        return vectorstore, llm
-    except Exception:
-        return None, None
+    except:
+        return None, None # Index might not exist yet
 
-# --- 6. UI & SIDEBAR ---
-st.title("🤖 AI Market Forecaster")
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash",
+        temperature=0.3,
+        google_api_key=google_key
+    )
 
-# Load Data Once
-df, date_col = load_data()
-topics_json = load_topics()
-topic_text = json.dumps(topics_json)[:1000] if topics_json else "No topic data."
+    # 3. Create Chain
+    template = """
+    You are a Market Analyst AI. Answer based on the context below.
+    
+    CONTEXT:
+    {context}
+    
+    QUESTION: {question}
+    
+    ANSWER:
+    """
+    PROMPT = PromptTemplate(template=template, input_variables=["context", "question"])
+    
+    qa_chain = RetrievalQA.from_chain_type(
+        llm=llm,
+        chain_type="stuff",
+        retriever=vectorstore.as_retriever(search_kwargs={"k": 5}),
+        chain_type_kwargs={"prompt": PROMPT}
+    )
+    return qa_chain, llm
 
-# Sidebar Navigation
+# --- 6. SIDEBAR NAVIGATION ---
 with st.sidebar:
     st.title("Navigation")
-    page = st.radio("Go to", ["Overview", "📈 Trend Analytics", "🔔 Alerts & Reports"])
-    st.divider()
     
-    # DATABASE BUILDER
+    # 🚀 DATABASE BUILDER (From New Code)
     if st.button("🚀 Build Database"):
         with st.spinner("Building..."):
             try:
                 import build_db
                 build_db.build_db()
-                st.success("✅ Database Built! Reloading...")
+                st.success("✅ Done! Reloading...")
                 st.rerun()
             except ImportError:
                 st.error("❌ 'build_db.py' not found.")
             except Exception as e:
                 st.error(f"❌ Error: {e}")
 
-    # CHATBOT
     st.divider()
-    st.header("💬 Chat")
+    page = st.radio("Go to", ["Overview", "📈 Trend Analytics", "🔔 Alerts & Reports"])
+    st.divider()
+
+    # 💬 CHATBOT (From Old Code)
+    st.header("💬 AI Assistant")
     if "messages" not in st.session_state:
-        st.session_state.messages = []
+        st.session_state.messages = [{"role": "assistant", "content": "Ask me about market trends!"}]
 
     for msg in st.session_state.messages:
         st.chat_message(msg["role"]).write(msg["content"])
 
-    if prompt := st.chat_input("Ask about the market..."):
+    if prompt := st.chat_input("Ask a question..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         st.chat_message("user").write(prompt)
         
-        # Run AI
-        v_store, llm_model = setup_ai()
-        if v_store and llm_model:
-            # Setup QA Chain
-            template = f"""Answer based on context. 
-            Context: {{context}}
-            Market Data: {topic_text}
-            Question: {{question}}
-            Answer:"""
-            
-            PROMPT = PromptTemplate(template=template, input_variables=["context", "question"])
-            
-            qa = RetrievalQA.from_chain_type(
-                llm=llm_model, chain_type="stuff", 
-                retriever=v_store.as_retriever(),
-                chain_type_kwargs={"prompt": PROMPT}
-            )
-            ans = qa.run(prompt)
-            
-            st.session_state.messages.append({"role": "assistant", "content": ans})
-            st.chat_message("assistant").write(ans)
+        qa_chain, _ = setup_rag_chain()
+        if qa_chain:
+            with st.spinner("Thinking..."):
+                try:
+                    res = qa_chain.run(prompt)
+                    st.session_state.messages.append({"role": "assistant", "content": res})
+                    st.chat_message("assistant").write(res)
+                except Exception as e:
+                    st.error(f"AI Error: {e}")
         else:
-            st.error("⚠️ AI not ready. Check API Keys.")
+            st.error("⚠️ Database not ready. Click 'Build Database' first.")
 
 # --- 7. MAIN PAGES ---
+df, date_col = load_data()
+topics_json = load_topics()
+qa_chain, llm_direct = setup_rag_chain()
 
 if page == "Overview":
-    st.subheader("📊 Market Overview")
+    st.title("📊 Market Overview")
     if not df.empty:
         total = len(df)
         pos = len(df[df['sentiment'] == 1])
         neg = len(df[df['sentiment'] == -1])
+        neu = len(df[df['sentiment'] == 0])
         
         c1, c2, c3 = st.columns(3)
         c1.metric("Total Reviews", total)
-        c2.metric("Positive", pos)
-        c3.metric("Negative", neg)
+        c2.metric("Positive", pos, f"{((pos/total)*100):.1f}%")
+        c3.metric("Negative", neg, f"{((neg/total)*100):.1f}%", delta_color="inverse")
         
-        # Charts
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("### Sentiment Split")
-            fig_pie = px.pie(names=["Positive", "Negative", "Neutral"], 
-                             values=[pos, neg, total-pos-neg],
-                             color_discrete_sequence=["#2ecc71", "#e74c3c", "#95a5a6"])
-            st.plotly_chart(fig_pie, use_container_width=True)
-            
-        with col2:
-            st.markdown("### Topic Scores")
+        st.divider()
+        c1, c2 = st.columns(2)
+        with c1:
+            st.subheader("Sentiment Distribution")
+            fig = px.pie(names=["Positive", "Negative", "Neutral"], values=[pos, neg, neu], 
+                         color_discrete_sequence=["#2ecc71", "#e74c3c", "#95a5a6"])
+            st.plotly_chart(fig, use_container_width=True)
+        with c2:
+            st.subheader("Feature Scores")
             f_df = process_topics_for_chart(topics_json)
             if not f_df.empty:
-                fig_bar = px.bar(f_df, x="Feature", y="Sentiment Score", color="Sentiment Score")
-                st.plotly_chart(fig_bar, use_container_width=True)
+                fig = px.bar(f_df, x="Feature", y="Sentiment Score", color="Sentiment Score", range_y=[-1,1])
+                st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("No data. Click 'Build Database' to start.")
+        st.info("👋 Welcome! Click '🚀 Build Database' in the sidebar to load data.")
 
 elif page == "📈 Trend Analytics":
-    st.subheader("📈 Trends")
+    st.title("📈 Trends")
     if not df.empty and date_col:
         daily = df.groupby(pd.Grouper(key=date_col, freq='D')).agg(
             Avg=('sentiment', 'mean'), Vol=('content', 'count')).reset_index()
         
         fig = go.Figure()
-        fig.add_trace(go.Bar(x=daily[date_col], y=daily['Vol'], name='Volume', marker_color='silver'))
-        fig.add_trace(go.Scatter(x=daily[date_col], y=daily['Avg'], name='Sentiment', line=dict(color='blue')))
+        fig.add_trace(go.Bar(x=daily[date_col], y=daily['Vol'], name='Volume', marker_color='silver', yaxis='y2'))
+        fig.add_trace(go.Scatter(x=daily[date_col], y=daily['Avg'], name='Sentiment', line=dict(color='blue', width=3)))
+        fig.update_layout(yaxis2=dict(overlaying='y', side='right'))
         st.plotly_chart(fig, use_container_width=True)
 
 elif page == "🔔 Alerts & Reports":
-    st.subheader("🔔 Alerts & Reports")
+    st.title("🔔 Alerts & Reporting")
     
     # Alerts
     alerts = check_alerts(df)
     if alerts:
         for a in alerts: st.error(a)
     else:
-        st.success("✅ System Healthy")
-        
+        st.success("✅ No critical alerts.")
+    
     st.divider()
     
-    # Report Gen
-    if st.button("Generate AI Report"):
-        v_store, llm = setup_ai()
-        if llm:
-            with st.spinner("Writing..."):
-                prompt = f"Write a professional market report based on this summary: {topic_text}"
-                rep = llm.invoke(prompt).content
-                st.session_state.rep = rep
+    # Report Generation
+    if st.button("Generate Executive Report"):
+        if llm_direct:
+            with st.spinner("Generating..."):
+                prompt = f"Write a professional market report based on {len(df)} reviews with a sentiment score of {df['sentiment'].mean():.2f}."
+                report = llm_direct.invoke(prompt).content
+                st.session_state.report = report
     
-    if "rep" in st.session_state:
-        st.markdown(st.session_state.rep)
+    if "report" in st.session_state:
+        st.markdown(st.session_state.report)
         
         # Email Form
         with st.form("email"):
-            email = st.text_input("Boss Email")
-            if st.form_submit_button("Send"):
-                ok, msg = send_email_to_boss(email, "Market Report", [st.session_state.rep])
-                if ok: st.success(msg)
+            email = st.text_input("Recipient Email")
+            if st.form_submit_button("Send Email"):
+                success, msg = send_email_to_boss(email, "Market Report", st.session_state.report)
+                if success: st.success(msg)
                 else: st.error(msg)
