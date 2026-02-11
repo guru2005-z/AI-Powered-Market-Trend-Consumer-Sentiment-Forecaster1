@@ -1,19 +1,16 @@
-# --- APPLICATION ---
-streamlit==1.35.0
-plotly==5.22.0
-pandas==2.2.2
-python-dotenv==1.0.1
-
-# --- CORE AI FRAMEWORK (Stable v0.1) ---
+streamlit
+pandas
+plotly
+python-dotenv
+yagmail
+# Core AI (Pinning to 0.1 to match your code imports)
 langchain==0.1.20
 langchain-community==0.0.38
 langchain-core==0.1.52
-
-# --- MODELS & INTEGRATIONS ---
+langchain-text-splitters==0.0.1
+# Integrations
 langchain-google-genai==1.0.3
 langchain-pinecone==0.1.0
-sentence-transformers==2.2.2
 pinecone-client==3.2.2
-
-# --- UTILS ---
-yagmail
+# Embeddings
+sentence-transformers
