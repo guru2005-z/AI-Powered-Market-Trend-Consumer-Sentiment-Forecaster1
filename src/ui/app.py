@@ -12,21 +12,13 @@ from dotenv import load_dotenv
 # --- 1. SETUP PAGE CONFIG ---
 st.set_page_config(page_title="AI Market Forecaster", layout="wide")
 
-# --- 2. UNIVERSAL IMPORTS (Works on ALL versions) ---
-try:
-    # Try New Style (v0.3+)
-    from langchain_pinecone import PineconeVectorStore
-    from langchain_google_genai import ChatGoogleGenerativeAI
-    from langchain_huggingface import HuggingFaceEmbeddings
-    from langchain.chains import RetrievalQA
-    from langchain_core.prompts import PromptTemplate
-except ImportError:
-    # Try Old Style (v0.1 - v0.2)
-    from langchain_community.vectorstores import Pinecone as PineconeVectorStore
-    from langchain_google_genai import ChatGoogleGenerativeAI
-    from langchain_community.embeddings import HuggingFaceEmbeddings
-    from langchain.chains import RetrievalQA
-    from langchain.prompts import PromptTemplate
+# --- 2. EXACT IMPORTS FOR LANGCHAIN 0.1 ---
+# These imports ONLY work with the requirements.txt I just gave you
+from langchain_community.vectorstores import Pinecone as PineconeVectorStore
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain.chains import RetrievalQA
+from langchain.prompts import PromptTemplate
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 # Load Keys
 load_dotenv()
@@ -56,10 +48,9 @@ def setup_ai():
 
     # Load AI
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    vectorstore = PineconeVectorStore(
+    vectorstore = PineconeVectorStore.from_existing_index(
         index_name="market-forecaster",
-        embedding=embeddings,
-        pinecone_api_key=pinecone_key
+        embedding=embeddings
     )
     llm = ChatGoogleGenerativeAI(
         model="gemini-2.5-flash",
@@ -80,7 +71,7 @@ with st.sidebar:
             try:
                 import build_db
                 build_db.build_db()
-                st.success("✅ Done!")
+                st.success("✅ Done! Reload page.")
             except ImportError:
                 st.error("❌ 'build_db.py' not found.")
             except Exception as e:
@@ -107,12 +98,7 @@ with st.sidebar:
                 llm=llm_model, chain_type="stuff", 
                 retriever=v_store.as_retriever()
             )
-            try:
-                response = qa.invoke({"query": prompt})
-                ans = response["result"]
-            except:
-                # Fallback for older LangChain
-                ans = qa.run(prompt)
+            ans = qa.run(prompt)
             
             st.session_state.messages.append({"role": "assistant", "content": ans})
             st.chat_message("assistant").write(ans)

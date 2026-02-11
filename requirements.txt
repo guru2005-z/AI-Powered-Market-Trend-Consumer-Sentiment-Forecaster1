@@ -3,13 +3,14 @@ pandas
 plotly
 python-dotenv
 yagmail
-# AI Libraries (No versions = No conflicts)
-langchain
-langchain-community
-langchain-core
-langchain-google-genai
-langchain-pinecone
-pinecone-client
-sentence-transformers
-# This fixes the missing module error
-langchain-huggingface
+# FORCE STABLE VERSION (This has the 'chains' folder)
+langchain==0.1.20
+langchain-community==0.0.38
+langchain-core==0.1.52
+langchain-text-splitters==0.0.1
+# INTEGRATIONS
+langchain-google-genai==1.0.3
+langchain-pinecone==0.1.0
+pinecone-client==3.2.2
+# EMBEDDINGS (Do not use langchain-huggingface)
+sentence-transformers==2.2.2
