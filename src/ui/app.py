@@ -9,98 +9,89 @@ import re
 from datetime import date
 from dotenv import load_dotenv
 
-# --- 1. SETUP PAGE CONFIG (Must be first) ---
+# --- 1. SETUP PAGE CONFIG ---
 st.set_page_config(page_title="AI Market Forecaster", layout="wide")
 
-# ✅ CORRECT IMPORTS FOR LANGCHAIN 0.1
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_pinecone import PineconeVectorStore
-from langchain.chains import RetrievalQA
-from langchain_google_genai import ChatGoogleGenerativeAI
+# --- 2. UNIVERSAL IMPORTS (Works on ALL versions) ---
+try:
+    # Try New Style (v0.3+)
+    from langchain_pinecone import PineconeVectorStore
+    from langchain_google_genai import ChatGoogleGenerativeAI
+    from langchain_huggingface import HuggingFaceEmbeddings
+    from langchain.chains import RetrievalQA
+    from langchain_core.prompts import PromptTemplate
+except ImportError:
+    # Try Old Style (v0.1 - v0.2)
+    from langchain_community.vectorstores import Pinecone as PineconeVectorStore
+    from langchain_google_genai import ChatGoogleGenerativeAI
+    from langchain_community.embeddings import HuggingFaceEmbeddings
+    from langchain.chains import RetrievalQA
+    from langchain.prompts import PromptTemplate
 
-# Load Environment Variables
+# Load Keys
 load_dotenv()
 
 # --- 3. HELPER FUNCTIONS ---
 @st.cache_data
 def load_data():
     try:
-        # Create dummy data if file missing (Prevents FileNotFoundError crash)
         if not os.path.exists("data/processed/youtube_sentiment.csv"):
-            return pd.DataFrame({'content': ['No data'], 'sentiment': [0], 'date': [pd.Timestamp.now()]}), 'date'
-            
+            return pd.DataFrame(), None
         df = pd.read_csv("data/processed/youtube_sentiment.csv")
-        # Date parsing logic...
-        date_col = None
-        for col in ['date', 'published_at', 'timestamp', 'created_at']:
-            if col in df.columns:
-                date_col = col
-                break
-        if date_col is None:
-            df['date'] = pd.date_range(end=pd.Timestamp.now(), periods=len(df))
-            date_col = 'date'
-        df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
-        return df.sort_values(by=date_col), date_col
-    except Exception as e:
+        # Simple date fix
+        df['date'] = pd.to_datetime(df.get('date', pd.Timestamp.now()), errors='coerce')
+        return df, 'date'
+    except Exception:
         return pd.DataFrame(), None
 
-# --- 4. AI PIPELINE (Cached & Lazy Loaded) ---
+# --- 4. AI PIPELINE ---
 @st.cache_resource
-def get_ai_engine():
-    """Initializes the heavy AI models only when needed."""
-    # Check Keys
-    pinecone_key = st.secrets.get("PINECONE_API_KEY") or os.getenv("PINECONE_API_KEY")
-    google_key = st.secrets.get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
+def setup_ai():
+    # Get Keys
+    pinecone_key = os.getenv("PINECONE_API_KEY") or st.secrets.get("PINECONE_API_KEY")
+    google_key = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
     
     if not pinecone_key or not google_key:
         return None, None
 
-    # Import here to save RAM on startup
-    from langchain_huggingface import HuggingFaceEmbeddings
-    from langchain_pinecone import PineconeVectorStore
-    from langchain.chains import RetrievalQA
-
-    # Load Model (This is the heavy part)
+    # Load AI
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    
     vectorstore = PineconeVectorStore(
         index_name="market-forecaster",
         embedding=embeddings,
         pinecone_api_key=pinecone_key
     )
-    
     llm = ChatGoogleGenerativeAI(
         model="gemini-2.5-flash",
         temperature=0.3,
         google_api_key=google_key
     )
-    
     return vectorstore, llm
 
-# --- 5. SIDEBAR ---
+# --- 5. UI & SIDEBAR ---
+st.title("🤖 AI Market Forecaster")
+
 with st.sidebar:
-    st.title("Navigation")
-    page = st.radio("Go to", ["Overview", "📈 Trend Analytics", "🔔 Alerts & Reports"])
+    st.header("⚙️ Actions")
+    
+    # DATABASE BUILDER
+    if st.button("🚀 Build Database"):
+        with st.spinner("Building..."):
+            try:
+                import build_db
+                build_db.build_db()
+                st.success("✅ Done!")
+            except ImportError:
+                st.error("❌ 'build_db.py' not found.")
+            except Exception as e:
+                st.error(f"❌ Error: {e}")
+
     st.divider()
     
-    # 🚀 BUILD DATABASE BUTTON
-    if st.button("🚀 Build Database (Remote)"):
-        with st.spinner("⏳ Building Database... (This takes ~60s)"):
-            try:
-                import build_db  # This runs your build_db.py script
-                build_db.build_db()
-                st.success("✅ Database Built Successfully!")
-                time.sleep(2)
-                st.rerun()
-            except ImportError:
-                st.error("❌ Error: 'build_db.py' file not found.")
-            except Exception as e:
-                st.error(f"❌ Build Failed: {e}")
-
-    # 💬 CHATBOT
-    st.header("💬 AI Assistant")
+    # CHATBOT
+    st.header("💬 Chat")
     if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "Ask me about the market trends!"}]
+        st.session_state.messages = []
 
     for msg in st.session_state.messages:
         st.chat_message(msg["role"]).write(msg["content"])
@@ -109,40 +100,30 @@ with st.sidebar:
         st.session_state.messages.append({"role": "user", "content": prompt})
         st.chat_message("user").write(prompt)
         
-        # Run AI only now
-        with st.spinner("Thinking..."):
-            v_store, llm_model = get_ai_engine()
-            if v_store and llm_model:
-                from langchain.chains import RetrievalQA
-                qa = RetrievalQA.from_chain_type(
-                    llm=llm_model, chain_type="stuff", 
-                    retriever=v_store.as_retriever()
-                )
+        # Run AI
+        v_store, llm_model = setup_ai()
+        if v_store and llm_model:
+            qa = RetrievalQA.from_chain_type(
+                llm=llm_model, chain_type="stuff", 
+                retriever=v_store.as_retriever()
+            )
+            try:
                 response = qa.invoke({"query": prompt})
                 ans = response["result"]
-            else:
-                ans = "⚠️ Please set your API Keys in Settings -> Secrets."
+            except:
+                # Fallback for older LangChain
+                ans = qa.run(prompt)
             
             st.session_state.messages.append({"role": "assistant", "content": ans})
             st.chat_message("assistant").write(ans)
+        else:
+            st.error("⚠️ Please set API Keys in Secrets.")
 
 # --- 6. MAIN CONTENT ---
 df, date_col = load_data()
-
-if page == "Overview":
-    st.title("📊 Market Overview")
-    if not df.empty:
-        st.metric("Total Reviews", len(df))
-        # Simple Charts
-        daily = df.groupby(pd.Grouper(key=date_col, freq='D')).size().reset_index(name='counts')
-        st.line_chart(daily, x=date_col, y='counts')
-    else:
-        st.info("No data found. Click 'Build Database' in the sidebar!")
-
-elif page == "📈 Trend Analytics":
-    st.title("📈 Trends")
-    st.write("Analytics View")
-
-elif page == "🔔 Alerts & Reports":
-    st.title("🔔 Alerts")
-    st.write("Alerts View")
+if not df.empty:
+    st.subheader("Overview")
+    st.metric("Total Reviews", len(df))
+    st.line_chart(df['sentiment'])
+else:
+    st.info("👋 Welcome! Click 'Build Database' to start.")
