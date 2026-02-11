@@ -3,13 +3,10 @@ pandas
 plotly
 python-dotenv
 yagmail
-# Core Stability (The "Golden Era")
+# Stable Versions (The "Golden Era")
+pinecone-client==3.2.2
 langchain==0.1.20
 langchain-community==0.0.38
 langchain-core==0.1.52
-# Integrations
 langchain-google-genai==1.0.3
 langchain-pinecone==0.1.0
-pinecone-client==3.2.2
-# Embeddings (Optional, keeping it light)
-sentence-transformers==2.2.2
