@@ -13,3 +13,4 @@ langchain-google-genai==1.0.3
 langchain-pinecone==0.1.0
 pinecone-client==3.2.2
 # EMBEDDINGS (Do not use langchain-huggingface)
+sentence-transformers==2.2.2
