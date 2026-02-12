@@ -1,9 +1,11 @@
+# ✅ UPGRADE THIS to fix the "cached_download" crash
+sentence-transformers==3.0.1
 streamlit
 pandas
 plotly
 python-dotenv
 yagmail
-# FORCE STABLE VERSION (This has the 'chains' folder)
+# CORE STABLE VERSIONS
 langchain==0.1.20
 langchain-community==0.0.38
 langchain-core==0.1.52
@@ -12,5 +14,3 @@ langchain-text-splitters==0.0.1
 langchain-google-genai==1.0.3
 langchain-pinecone==0.1.0
 pinecone-client==3.2.2
-# EMBEDDINGS (Do not use langchain-huggingface)
-sentence-transformers==2.2.2
